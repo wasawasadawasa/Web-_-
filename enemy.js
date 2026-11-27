@@ -21,9 +21,9 @@ function createEnemy(x, vx, y) {
   const comment = OTK_COMMENTS[Math.floor(Math.random() * OTK_COMMENTS.length)];
   return {
     x: x,
-    y: y !== undefined ? y : floor.y - 36,
-    w: 44,
-    h: 36,
+    y: y !== undefined ? y : floor.y - 32,
+    w: 56,
+    h: 32,
     vx: vx,
     vy: 0,
     alive: true,
@@ -50,10 +50,10 @@ function spawnEnemy() {
   const speed = 75 + Math.random() * 65;
   if (pattern === 0) {
     // 左端から
-    enemies.push(createEnemy(4, speed, floor.y - 36));
+    enemies.push(createEnemy(4, speed, floor.y - 32));
   } else if (pattern === 1) {
     // 右端から
-    enemies.push(createEnemy(canvas.width - 48, -speed, floor.y - 36));
+    enemies.push(createEnemy(canvas.width - 60, -speed, floor.y - 32));
   } else {
     // 上空から降ってくる
     const rx = 60 + Math.random() * (canvas.width - 140);
@@ -125,84 +125,121 @@ function collideWithEnemies(prevBottom) {
   enemies = enemies.filter((enemy) => enemy.alive);
 }
 
-// 「🤓☝️」オタク講釈スタンプを描画
+// 「🤓☝️」オタク講釈スタンプを描画（Twemoji風デザイン）
 function drawNerdStamp(x, y) {
   const faceCx = x + 16;
-  const faceCy = y + 19;
-  const faceR = 14;
+  const faceCy = y + 16;
+  const faceR = 15;
 
   ctx.save();
-  // 黄色い丸顔ベース
-  ctx.fillStyle = "#ffd43b";
-  ctx.strokeStyle = "#b8860b";
-  ctx.lineWidth = 1.5;
+  // --- 左側：🤓 顔 ---
+  // 黄色い丸顔ベース（フラット）
+  ctx.fillStyle = "#ffcc4d";
   ctx.beginPath();
   ctx.arc(faceCx, faceCy, faceR, 0, Math.PI * 2);
   ctx.fill();
-  ctx.stroke();
 
   // 縦長の茶色い両目
-  ctx.fillStyle = "#4a2511";
+  ctx.fillStyle = "#664500";
   ctx.beginPath();
-  ctx.ellipse(faceCx - 5, faceCy - 2, 1.8, 3.2, 0, 0, Math.PI * 2);
-  ctx.ellipse(faceCx + 5, faceCy - 2, 1.8, 3.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(faceCx - 5.2, faceCy - 2.2, 2.0, 3.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(faceCx + 5.2, faceCy - 2.2, 2.0, 3.1, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // 黒縁の太めメガネ
-  ctx.strokeStyle = "#111111";
-  ctx.lineWidth = 2.4;
-  ctx.strokeRect(faceCx - 10, faceCy - 6, 8.5, 7.5);
-  ctx.strokeRect(faceCx + 1.5, faceCy - 6, 8.5, 7.5);
-  // メガネのブリッジ
+  // 黒縁の太めウェリントン型メガネ（#292f33）
+  ctx.strokeStyle = "#292f33";
+  ctx.fillStyle = "#292f33";
+  ctx.lineWidth = 2.6;
+  // 左レンズ枠
   ctx.beginPath();
-  ctx.moveTo(faceCx - 1.5, faceCy - 2.5);
-  ctx.lineTo(faceCx + 1.5, faceCy - 2.5);
+  ctx.roundRect(faceCx - 11.8, faceCy - 6.8, 9.6, 8.2, [2.5, 2.5, 4.2, 4.2]);
   ctx.stroke();
-
-  // ニヤリと開いた口
-  ctx.fillStyle = "#5c1a1a";
+  // 右レンズ枠
   ctx.beginPath();
-  ctx.arc(faceCx, faceCy + 4.5, 6.5, 0, Math.PI, false);
+  ctx.roundRect(faceCx + 2.2, faceCy - 6.8, 9.6, 8.2, [2.5, 2.5, 4.2, 4.2]);
+  ctx.stroke();
+  // 中央ブリッジ
+  ctx.fillRect(faceCx - 2.4, faceCy - 5.6, 4.8, 2.6);
+  // 左右のツル（テンプル）
+  ctx.fillRect(faceCx - 14.8, faceCy - 5.8, 3.2, 2.4);
+  ctx.fillRect(faceCx + 11.6, faceCy - 5.8, 3.2, 2.4);
+
+  // ニヤリと開いた三日月状の口（#664500）
+  ctx.fillStyle = "#664500";
+  ctx.beginPath();
+  ctx.moveTo(faceCx - 8.2, faceCy + 4.4);
+  ctx.quadraticCurveTo(faceCx, faceCy + 9.2, faceCx + 8.2, faceCy + 4.4);
+  ctx.quadraticCurveTo(faceCx, faceCy + 13.8, faceCx - 8.2, faceCy + 4.4);
   ctx.closePath();
   ctx.fill();
 
-  // 白い2本の出っ歯
+  // 白い2本の出っ歯（中央に少し隙間）
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(faceCx - 3.6, faceCy + 4.5, 3.2, 4.2);
-  ctx.fillRect(faceCx + 0.4, faceCy + 4.5, 3.2, 4.2);
-  ctx.strokeStyle = "#222222";
-  ctx.lineWidth = 0.7;
-  ctx.strokeRect(faceCx - 3.6, faceCy + 4.5, 3.2, 4.2);
-  ctx.strokeRect(faceCx + 0.4, faceCy + 4.5, 3.2, 4.2);
-
-  // 顔の右側に人差し指をピンと立てた黄色い手（☝️）
-  const handX = x + 36;
-  const handY = y + 23;
-
-  ctx.fillStyle = "#ffd43b";
-  ctx.strokeStyle = "#8a6200";
-  ctx.lineWidth = 1.2;
-
-  // 真上にまっすぐ立てた人差し指
   ctx.beginPath();
-  ctx.roundRect(handX - 2.4, handY - 17, 4.8, 15, 2.4);
+  ctx.roundRect(faceCx - 3.9, faceCy + 6.8, 3.4, 4.4, [0, 0, 1.4, 1.4]);
   ctx.fill();
+  ctx.beginPath();
+  ctx.roundRect(faceCx + 0.5, faceCy + 6.8, 3.4, 4.4, [0, 0, 1.4, 1.4]);
+  ctx.fill();
+
+  // --- 右側：☝️ 指差し手 ---
+  const hx = x + 43;
+  const hy = y + 18;
+
+  // 手のひらベース（丸みのある下部）
+  ctx.fillStyle = "#ffdc5d";
+  ctx.beginPath();
+  ctx.arc(hx + 0.5, hy + 2.5, 9.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 右端にまっすぐ立てた人差し指
+  ctx.beginPath();
+  ctx.roundRect(hx + 3.6, y + 2, 4.4, 15.5, 2.2);
+  ctx.fill();
+
+  // 左側の折りたたんだ3本指（小指・薬指・中指）
+  ctx.beginPath();
+  ctx.roundRect(hx - 8.6, hy - 5.2, 4.0, 9.0, 2.0);
+  ctx.roundRect(hx - 4.8, hy - 6.8, 4.2, 10.2, 2.0);
+  ctx.roundRect(hx - 0.8, hy - 6.2, 4.2, 9.8, 2.0);
+  ctx.fill();
+
+  // 指の境目と親指のオレンジ色ライン（#ef9645）
+  ctx.strokeStyle = "#ef9645";
+  ctx.lineWidth = 1.3;
+  ctx.lineCap = "round";
+
+  // 折りたたんだ指の下のカーブ
+  ctx.beginPath();
+  ctx.moveTo(hx - 8.6, hy + 1.8);
+  ctx.quadraticCurveTo(hx - 6.6, hy + 4.0, hx - 4.8, hy + 1.8);
+  ctx.quadraticCurveTo(hx - 2.7, hy + 4.0, hx - 0.8, hy + 1.8);
   ctx.stroke();
 
-  // 握った拳部分
+  // 指同士の縦の区切り線
   ctx.beginPath();
-  ctx.roundRect(handX - 5.5, handY - 4, 11, 10, 4);
-  ctx.fill();
+  ctx.moveTo(hx - 4.8, hy - 4.8);
+  ctx.lineTo(hx - 4.8, hy + 1.8);
+  ctx.moveTo(hx - 0.8, hy - 5.2);
+  ctx.lineTo(hx - 0.8, hy + 1.8);
   ctx.stroke();
 
-  // 折りたたんだ指の線
-  ctx.strokeStyle = "#a67600";
-  ctx.lineWidth = 0.9;
+  // 横に重なった親指
+  ctx.fillStyle = "#ffdc5d";
   ctx.beginPath();
-  ctx.moveTo(handX - 1, handY - 2);
-  ctx.lineTo(handX - 1, handY + 4);
-  ctx.moveTo(handX + 2.2, handY - 2);
-  ctx.lineTo(handX + 2.2, handY + 4);
+  ctx.roundRect(hx - 1.5, hy - 3.2, 8.2, 5.2, 2.5);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(hx + 6.4, hy - 3.0);
+  ctx.lineTo(hx + 0.5, hy - 3.0);
+  ctx.quadraticCurveTo(hx - 2.2, hy - 0.6, hx + 0.5, hy + 2.0);
+  ctx.lineTo(hx + 4.8, hy + 2.0);
+  ctx.stroke();
+
+  // 親指の付け根のカーブ（手のひらのシワ）
+  ctx.beginPath();
+  ctx.moveTo(hx + 3.2, hy + 2.4);
+  ctx.quadraticCurveTo(hx + 0.2, hy + 5.2, hx + 0.6, hy + 9.4);
   ctx.stroke();
 
   ctx.restore();
