@@ -97,14 +97,25 @@ function updateEnemies(dt) {
 
 // プレイヤーとぶつかったとき：上から踏めばBAN＆集金、横・下ならメンタル減少
 function collideWithEnemies(prevBottom) {
+  const wasFalling = player.vy > 0;
+  let stompedAny = false;
+  let damaged = false;
+
+  // 横・下からのダメージ判定は見た目より少し内側に縮めて理不尽な被弾を防ぐ
+  const hurtPlayer = {
+    x: player.x + 8,
+    y: player.y + 6,
+    w: player.w - 16,
+    h: player.h - 10
+  };
+
   for (const enemy of enemies) {
     if (!enemy.alive || !aabb(player, enemy)) continue;
 
-    // 上から踏みつけた判定
-    if (prevBottom <= enemy.y + 12 && player.vy > 0) {
+    // 上から踏みつけた判定（落下中かつ敵の上半分付近から入った場合）
+    if (wasFalling && prevBottom <= enemy.y + enemy.h * 0.55) {
       enemy.alive = false;
-      player.vy = -JUMP_SPEED * 0.68;
-      player.jumpsLeft = MAX_JUMPS;
+      stompedAny = true;
 
       banCount += 1;
       const reward = (Math.floor(Math.random() * 5) + 1) * 1000;
@@ -115,13 +126,31 @@ function collideWithEnemies(prevBottom) {
         gameState = "clear";
         initClearEffects();
       }
-    } else if (player.hitTimer <= 0) {
-      // 横・下からぶつかった：メンタルを1減らして無敵時間発生
-      player.hp -= 1;
-      player.hitTimer = 1.4;
-      player.vy = -220;
+    } else {
+      // 横・下からの接触は小さめのヒットボックスで判定
+      const hurtEnemy = {
+        x: enemy.x + 8,
+        y: enemy.y + 6,
+        w: enemy.w - 16,
+        h: enemy.h - 6
+      };
+      if (aabb(hurtPlayer, hurtEnemy)) {
+        damaged = true;
+      }
     }
   }
+
+  if (stompedAny) {
+    // 2体以上同時に踏んでも全員まとめてBANし、最後に1回だけ跳ねる
+    player.vy = -JUMP_SPEED * 0.68;
+    player.jumpsLeft = MAX_JUMPS;
+  } else if (damaged && player.hitTimer <= 0) {
+    // 踏んでいないフレームで横・下からぶつかった場合のみダメージ
+    player.hp -= 1;
+    player.hitTimer = 1.4;
+    player.vy = -220;
+  }
+
   enemies = enemies.filter((enemy) => enemy.alive);
 }
 
