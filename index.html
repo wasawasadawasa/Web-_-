@@ -2,35 +2,26 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OW配信防衛！講釈オタクBAN</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
     body {
       margin: 0;
-      background: radial-gradient(circle at 50% 35%, #192138 0%, #0a0e1a 100%);
+      background: #0b0e17;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
-      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
-      overflow: hidden;
+      height: 100vh;
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
     }
     canvas {
-      border: 2px solid #303d61;
-      border-radius: 6px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(249, 158, 26, 0.25);
-      max-width: 96vw;
-      max-height: 92vh;
-      height: auto;
-      display: block;
+      border: 2px solid #2b3553;
+      box-shadow: 0 0 28px rgba(0, 0, 0, 0.7);
+      image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="800" height="450"></canvas>
+  <canvas id="canvas" width="640" height="360"></canvas>
 
   <script src="tools.js"></script>
   <script src="stage.js"></script>

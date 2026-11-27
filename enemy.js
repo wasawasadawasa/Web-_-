@@ -1,10 +1,6 @@
-// 敵：「🤓☝️」オタク講釈スタンプ＋チャット吹き出し・出現・踏みつけ判定
+// 敵：OW講釈オタクスタンプ（「🤓☝️」）＋コメント吹き出し
 
-const MAX_ENEMIES = 6;
-const SPAWN_INTERVAL = 1.8;
-const ENEMY_GRAVITY = 900;
-
-const LECTURE_COMMENTS = [
+const OTK_COMMENTS = [
   "今のウルト吐くの早すぎｗ",
   "ザリア出せば勝てるのに",
   "俺マスターだけど今の立ち回り違う",
@@ -17,381 +13,245 @@ const LECTURE_COMMENTS = [
   "お前がキャリーするしかないよ"
 ];
 
-let enemies = [];
-let spawnTimer = 0;
-let enemySeq = 0;
-let lastCommentIndex = -1;
-
-// ランダムな講釈コメントを選ぶ（直前と同じ文言を避ける）
-function pickLectureComment() {
-  let idx = Math.floor(Math.random() * LECTURE_COMMENTS.length);
-  if (idx === lastCommentIndex) {
-    idx = (idx + 1) % LECTURE_COMMENTS.length;
-  }
-  lastCommentIndex = idx;
-  return LECTURE_COMMENTS[idx];
-}
+const MAX_ENEMIES = 6;
+const SPAWN_INTERVAL = 1.8;
 
 // ① 作る：講釈オタクを1体作って返す関数
 function createEnemy(x, vx, y) {
-  const w = 50;
-  const h = 42;
-  const startY = typeof y === "number" ? y : floor.y - h;
-  enemySeq += 1;
+  const comment = OTK_COMMENTS[Math.floor(Math.random() * OTK_COMMENTS.length)];
   return {
-    id: enemySeq,
     x: x,
-    y: startY,
-    w: w,
-    h: h,
+    y: y !== undefined ? y : floor.y - 36,
+    w: 44,
+    h: 36,
     vx: vx,
     vy: 0,
     alive: true,
-    comment: pickLectureComment(),
-    bobPhase: Math.random() * Math.PI * 2,
-    bubbleTier: enemySeq % 2   // 吹き出しの高さを少しずらして読みやすくする
+    comment: comment
   };
 }
 
-// ② 最初の敵を入れ直す（初期の講釈オタクを3体配置）
+// ② 入れる：敵をまとめて入れる配列
+let enemies = [];
+let spawnTimer = 0;
+
+// 最初の敵を入れ直す（初期3体）
 function resetEnemies() {
   enemies = [];
   spawnTimer = 0;
-  enemySeq = 0;
-  enemies.push(createEnemy(280, 95));
-  enemies.push(createEnemy(500, -125));
-  enemies.push(createEnemy(670, -85));
+  enemies.push(createEnemy(230, 85));
+  enemies.push(createEnemy(400, -110));
+  enemies.push(createEnemy(540, 75));
 }
 
-// プレイ中に左右または上空から新しい講釈オタクを出現させる
+// 画面の左右端または上空から講釈オタクを1体出現させる
 function spawnEnemy() {
-  if (enemies.length >= MAX_ENEMIES) return;
-
-  const speed = 85 + Math.random() * 80;
-  const pattern = Math.random();
-
-  if (pattern < 0.35) {
-    // 左端から出現（プレイヤーが左端に近すぎる場合は右端へ逃がす）
-    if (player.x < 140) {
-      enemies.push(createEnemy(canvas.width - 52, -speed));
-    } else {
-      enemies.push(createEnemy(2, speed));
-    }
-  } else if (pattern < 0.7) {
-    // 右端から出現（プレイヤーが右端に近すぎる場合は左端へ逃がす）
-    if (player.x > canvas.width - 180) {
-      enemies.push(createEnemy(2, speed));
-    } else {
-      enemies.push(createEnemy(canvas.width - 52, -speed));
-    }
+  const pattern = Math.floor(Math.random() * 3);
+  const speed = 75 + Math.random() * 65;
+  if (pattern === 0) {
+    // 左端から
+    enemies.push(createEnemy(4, speed, floor.y - 36));
+  } else if (pattern === 1) {
+    // 右端から
+    enemies.push(createEnemy(canvas.width - 48, -speed, floor.y - 36));
   } else {
-    // 上空から落下出現（プレイヤーの真上直撃は避ける）
-    let spawnX = 60 + Math.random() * (canvas.width - 170);
-    if (Math.abs(spawnX - player.x) < 90) {
-      spawnX = player.x < canvas.width / 2
-        ? Math.min(canvas.width - 90, player.x + 150)
-        : Math.max(40, player.x - 150);
-    }
+    // 上空から降ってくる
+    const rx = 60 + Math.random() * (canvas.width - 140);
     const dir = Math.random() < 0.5 ? -1 : 1;
-    enemies.push(createEnemy(spawnX, dir * speed, 48));
+    enemies.push(createEnemy(rx, dir * speed, 48));
   }
 }
 
-// ③ 動かす：スポーン管理と移動・落下処理
+// ③ 動かす：敵の定期出現・移動・重力
 function updateEnemies(dt) {
   spawnTimer += dt;
   if (spawnTimer >= SPAWN_INTERVAL) {
     spawnTimer -= SPAWN_INTERVAL;
-    spawnEnemy();
+    if (enemies.length < MAX_ENEMIES) {
+      spawnEnemy();
+    }
   }
 
   for (const enemy of enemies) {
-    enemy.bobPhase += dt * 9;
+    enemy.vy += GRAVITY * dt;
+    enemy.x += enemy.vx * dt;
+    enemy.y += enemy.vy * dt;
 
-    // 空中からの出現時は重力で床へ落とす
-    if (enemy.y + enemy.h < floor.y) {
-      enemy.vy += ENEMY_GRAVITY * dt;
-      enemy.y += enemy.vy * dt;
-      if (enemy.y + enemy.h >= floor.y) {
-        enemy.y = floor.y - enemy.h;
-        enemy.vy = 0;
-      }
+    // 床との当たり判定
+    if (enemy.y + enemy.h >= floor.y) {
+      enemy.y = floor.y - enemy.h;
+      enemy.vy = 0;
     }
 
-    // 横移動と画面端での折り返し
-    enemy.x += enemy.vx * dt;
-    if (enemy.x < 4) {
-      enemy.x = 4;
+    // 画面端で折り返し
+    if (enemy.x < 0) {
+      enemy.x = 0;
       enemy.vx = Math.abs(enemy.vx);
     }
-    if (enemy.x + enemy.w > canvas.width - 4) {
-      enemy.x = canvas.width - 4 - enemy.w;
+    if (enemy.x + enemy.w > canvas.width) {
+      enemy.x = canvas.width - enemy.w;
       enemy.vx = -Math.abs(enemy.vx);
     }
   }
 }
 
-// プレイヤーとの当たり判定：上から踏みつけでBAN、横・下からでメンタルダメージ
+// プレイヤーとぶつかったとき：上から踏めばBAN＆集金、横・下ならメンタル減少
 function collideWithEnemies(prevBottom) {
   for (const enemy of enemies) {
-    if (!enemy.alive) continue;
-    if (!aabb(player, enemy)) continue;
+    if (!enemy.alive || !aabb(player, enemy)) continue;
 
-    // 上から落下して踏みつけた判定（少し余裕を持たせて踏みやすくする）
-    const isStomp = prevBottom <= enemy.y + 16 && player.vy > 0;
-    if (isStomp) {
+    // 上から踏みつけた判定
+    if (prevBottom <= enemy.y + 12 && player.vy > 0) {
       enemy.alive = false;
-      player.vy = -JUMP_SPEED * 0.72;
+      player.vy = -JUMP_SPEED * 0.68;
       player.jumpsLeft = MAX_JUMPS;
 
-      if (typeof onEnemyBanned === "function") {
-        onEnemyBanned(enemy);
+      banCount += 1;
+      const reward = (Math.floor(Math.random() * 5) + 1) * 1000;
+      money += reward;
+      spawnBanEffect(enemy.x + enemy.w / 2, enemy.y, reward);
+
+      if (banCount >= TARGET_BAN) {
+        gameState = "clear";
+        initClearEffects();
       }
-    } else {
-      // 横・下からぶつかったらメンタル耐久値を減らして無敵時間発生
-      damagePlayer(enemy.x + enemy.w / 2);
+    } else if (player.hitTimer <= 0) {
+      // 横・下からぶつかった：メンタルを1減らして無敵時間発生
+      player.hp -= 1;
+      player.hitTimer = 1.4;
+      player.vy = -220;
     }
   }
-
   enemies = enemies.filter((enemy) => enemy.alive);
 }
 
-// 「🤓☝️」オタク講釈スタンプ本体を描く（顔＋右側の人差し指を立てた手）
-function drawNerdStamp(x, y, w, h, bob) {
+// 「🤓☝️」オタク講釈スタンプを描画
+function drawNerdStamp(x, y) {
+  const faceCx = x + 16;
+  const faceCy = y + 19;
+  const faceR = 14;
+
   ctx.save();
-  const yOff = Math.sin(bob) * 2;
-  const faceR = 16.5;
-  const faceX = x + 17.5;
-  const faceY = y + h - faceR - 2 + yOff;
-
-  // --- 1. 黄色い丸顔ベース ---
-  const faceGrad = ctx.createRadialGradient(
-    faceX - 5, faceY - 6, 2,
-    faceX, faceY, faceR
-  );
-  faceGrad.addColorStop(0, "#fff275");
-  faceGrad.addColorStop(0.65, "#ffd43b");
-  faceGrad.addColorStop(1, "#f0a500");
-
+  // 黄色い丸顔ベース
+  ctx.fillStyle = "#ffd43b";
+  ctx.strokeStyle = "#b8860b";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(faceX, faceY, faceR, 0, Math.PI * 2);
-  ctx.fillStyle = faceGrad;
+  ctx.arc(faceCx, faceCy, faceR, 0, Math.PI * 2);
   ctx.fill();
-  ctx.lineWidth = 1.6;
-  ctx.strokeStyle = "#6e4600";
   ctx.stroke();
 
-  // わずかな頬の赤み
-  ctx.fillStyle = "rgba(255, 110, 90, 0.28)";
+  // 縦長の茶色い両目
+  ctx.fillStyle = "#4a2511";
   ctx.beginPath();
-  ctx.ellipse(faceX - 9, faceY + 4, 3.2, 2, 0, 0, Math.PI * 2);
-  ctx.ellipse(faceX + 9, faceY + 4, 3.2, 2, 0, 0, Math.PI * 2);
+  ctx.ellipse(faceCx - 5, faceCy - 2, 1.8, 3.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(faceCx + 5, faceCy - 2, 1.8, 3.2, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // --- 2. ニヤリと開いた口と白い2本の出っ歯 ---
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(faceX - 8.5, faceY + 5);
-  ctx.quadraticCurveTo(faceX, faceY + 7.5, faceX + 8.5, faceY + 5);
-  ctx.quadraticCurveTo(faceX + 6.5, faceY + 13.5, faceX, faceY + 13.5);
-  ctx.quadraticCurveTo(faceX - 6.5, faceY + 13.5, faceX - 8.5, faceY + 5);
-  ctx.closePath();
-  ctx.fillStyle = "#591c1c";
-  ctx.fill();
-  ctx.strokeStyle = "#3b1212";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  // 2本の白い出っ歯
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#666666";
-  ctx.lineWidth = 0.8;
-  ctx.fillRect(faceX - 4.1, faceY + 6, 3.9, 4.6);
-  ctx.strokeRect(faceX - 4.1, faceY + 6, 3.9, 4.6);
-  ctx.fillRect(faceX + 0.2, faceY + 6, 3.9, 4.6);
-  ctx.strokeRect(faceX + 0.2, faceY + 6, 3.9, 4.6);
-  ctx.restore();
-
-  // --- 3. 縦長の茶色い両目 ---
-  const eyeY = faceY - 2.2;
-  const leftEyeX = faceX - 6.2;
-  const rightEyeX = faceX + 6.2;
-
-  ctx.fillStyle = "#3d2210";
-  ctx.beginPath();
-  ctx.ellipse(leftEyeX, eyeY, 2.2, 3.8, 0, 0, Math.PI * 2);
-  ctx.ellipse(rightEyeX, eyeY, 2.2, 3.8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // 目のハイライト
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.arc(leftEyeX - 0.7, eyeY - 1.3, 0.9, 0, Math.PI * 2);
-  ctx.arc(rightEyeX - 0.7, eyeY - 1.3, 0.9, 0, Math.PI * 2);
-  ctx.fill();
-
-  // --- 4. 黒縁の太めメガネ ---
-  ctx.save();
-  const lensW = 11.2;
-  const lensH = 9.8;
-  const lensY = eyeY - lensH / 2;
-
-  // レンズの薄いガラス感と光沢
-  ctx.fillStyle = "rgba(230, 246, 255, 0.32)";
-  drawRoundRect(ctx, leftEyeX - lensW / 2, lensY, lensW, lensH, 3.5);
-  ctx.fill();
-  drawRoundRect(ctx, rightEyeX - lensW / 2, lensY, lensW, lensH, 3.5);
-  ctx.fill();
-
-  // レンズの斜めキラリ線
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.moveTo(leftEyeX - 3.5, lensY + 2);
-  ctx.lineTo(leftEyeX - 1.5, lensY + 4.5);
-  ctx.moveTo(rightEyeX - 3.5, lensY + 2);
-  ctx.lineTo(rightEyeX - 1.5, lensY + 4.5);
-  ctx.stroke();
-
-  // 太い黒フレーム
+  // 黒縁の太めメガネ
   ctx.strokeStyle = "#111111";
-  ctx.lineWidth = 2.5;
-  drawRoundRect(ctx, leftEyeX - lensW / 2, lensY, lensW, lensH, 3.5);
-  ctx.stroke();
-  drawRoundRect(ctx, rightEyeX - lensW / 2, lensY, lensW, lensH, 3.5);
-  ctx.stroke();
-
-  // ブリッジと左右のつる
+  ctx.lineWidth = 2.4;
+  ctx.strokeRect(faceCx - 10, faceCy - 6, 8.5, 7.5);
+  ctx.strokeRect(faceCx + 1.5, faceCy - 6, 8.5, 7.5);
+  // メガネのブリッジ
   ctx.beginPath();
-  ctx.moveTo(leftEyeX + lensW / 2, eyeY - 0.8);
-  ctx.lineTo(rightEyeX - lensW / 2, eyeY - 0.8);
-  ctx.moveTo(leftEyeX - lensW / 2, eyeY - 1);
-  ctx.lineTo(faceX - faceR + 0.5, eyeY - 2);
-  ctx.moveTo(rightEyeX + lensW / 2, eyeY - 1);
-  ctx.lineTo(faceX + faceR - 0.5, eyeY - 2);
+  ctx.moveTo(faceCx - 1.5, faceCy - 2.5);
+  ctx.lineTo(faceCx + 1.5, faceCy - 2.5);
   ctx.stroke();
-  ctx.restore();
 
-  // --- 5. 顔の右側に人差し指をピンと立てた黄色い手（☝️） ---
+  // ニヤリと開いた口
+  ctx.fillStyle = "#5c1a1a";
+  ctx.beginPath();
+  ctx.arc(faceCx, faceCy + 4.5, 6.5, 0, Math.PI, false);
+  ctx.closePath();
+  ctx.fill();
+
+  // 白い2本の出っ歯
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(faceCx - 3.6, faceCy + 4.5, 3.2, 4.2);
+  ctx.fillRect(faceCx + 0.4, faceCy + 4.5, 3.2, 4.2);
+  ctx.strokeStyle = "#222222";
+  ctx.lineWidth = 0.7;
+  ctx.strokeRect(faceCx - 3.6, faceCy + 4.5, 3.2, 4.2);
+  ctx.strokeRect(faceCx + 0.4, faceCy + 4.5, 3.2, 4.2);
+
+  // 顔の右側に人差し指をピンと立てた黄色い手（☝️）
   const handX = x + 36;
-  const handY = y + h - 19 + yOff * 1.15;
+  const handY = y + 23;
 
-  ctx.save();
   ctx.fillStyle = "#ffd43b";
-  ctx.strokeStyle = "#6e4600";
-  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = "#8a6200";
+  ctx.lineWidth = 1.2;
 
-  // 真上にピンと立てた人差し指
-  drawRoundRect(ctx, handX + 1.5, handY - 16, 6.2, 19, 3.1);
+  // 真上にまっすぐ立てた人差し指
+  ctx.beginPath();
+  ctx.roundRect(handX - 2.4, handY - 17, 4.8, 15, 2.4);
   ctx.fill();
   ctx.stroke();
 
-  // 人差し指のハイライト
-  ctx.fillStyle = "#fff59d";
-  ctx.fillRect(handX + 3.2, handY - 14, 1.6, 5);
-
-  // 拳ベース（手のひら）
-  ctx.fillStyle = "#fcc419";
-  drawRoundRect(ctx, handX, handY - 1, 13.5, 13, 5);
+  // 握った拳部分
+  ctx.beginPath();
+  ctx.roundRect(handX - 5.5, handY - 4, 11, 10, 4);
   ctx.fill();
   ctx.stroke();
 
-  // 丸めた中指・薬指・小指の3つの節
-  ctx.fillStyle = "#ffd43b";
-  for (let i = 0; i < 3; i++) {
-    drawRoundRect(ctx, handX + 6.5, handY - 0.5 + i * 3.8, 6.8, 3.9, 1.8);
-    ctx.fill();
-    ctx.stroke();
-  }
-
-  // 左側に添えた親指
-  drawRoundRect(ctx, handX - 1.5, handY + 2.5, 6.5, 5.2, 2.4);
-  ctx.fill();
+  // 折りたたんだ指の線
+  ctx.strokeStyle = "#a67600";
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(handX - 1, handY - 2);
+  ctx.lineTo(handX - 1, handY + 4);
+  ctx.moveTo(handX + 2.2, handY - 2);
+  ctx.lineTo(handX + 2.2, handY + 4);
   ctx.stroke();
-  ctx.restore();
 
   ctx.restore();
 }
 
-// ダークグレーのオタク講釈コメント吹き出しを描く
+// スタンプの上にダークグレーのチャット吹き出しを描画
 function drawCommentBubble(enemy) {
   ctx.save();
-  ctx.font = "bold 11px sans-serif";
+  ctx.font = "bold 10px sans-serif";
   const text = enemy.comment;
-  const padX = 8;
-  const bubbleH = 22;
+  const padX = 6;
   const textW = ctx.measureText(text).width;
-  const bubbleW = textW + padX * 2 + 10;
+  const bw = textW + padX * 2;
+  const bh = 18;
 
-  const anchorX = enemy.x + enemy.w / 2;
-  const tierOffset = enemy.bubbleTier * 24;
-  let bx = anchorX - bubbleW / 2;
-  let by = enemy.y - bubbleH - 10 - tierOffset;
+  let bx = enemy.x + enemy.w / 2 - bw / 2;
+  // 画面外にはみ出さないようクランプ
+  if (bx < 4) bx = 4;
+  if (bx + bw > canvas.width - 4) bx = canvas.width - 4 - bw;
+  const by = Math.max(36, enemy.y - bh - 7);
 
-  // 画面端や上部HUDバーに被らないようクランプ
-  if (bx < 6) bx = 6;
-  if (bx + bubbleW > canvas.width - 6) bx = canvas.width - 6 - bubbleW;
-  if (by < 54) by = 54;
-
-  // 吹き出し本体（ダークグレー）
-  drawRoundRect(ctx, bx, by, bubbleW, bubbleH, 6);
-  ctx.fillStyle = "rgba(28, 31, 42, 0.94)";
+  // ダークグレーの吹き出し本体
+  ctx.fillStyle = "rgba(30, 34, 46, 0.92)";
+  ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 5);
   ctx.fill();
-  ctx.strokeStyle = "rgba(155, 170, 205, 0.55)";
-  ctx.lineWidth = 1.2;
   ctx.stroke();
 
-  // 下向きの三角しっぽ
-  const tailX = Math.max(bx + 10, Math.min(bx + bubbleW - 10, anchorX));
+  // 吹き出しの下向き三角
+  const tipX = Math.max(bx + 8, Math.min(bx + bw - 8, enemy.x + enemy.w / 2));
   ctx.beginPath();
-  ctx.moveTo(tailX - 5, by + bubbleH - 0.5);
-  ctx.lineTo(tailX + 5, by + bubbleH - 0.5);
-  ctx.lineTo(tailX, by + bubbleH + 6);
+  ctx.moveTo(tipX - 4, by + bh);
+  ctx.lineTo(tipX + 4, by + bh);
+  ctx.lineTo(tipX, by + bh + 5);
   ctx.closePath();
-  ctx.fillStyle = "rgba(28, 31, 42, 0.94)";
-  ctx.fill();
-  ctx.strokeStyle = "rgba(155, 170, 205, 0.55)";
-  ctx.beginPath();
-  ctx.moveTo(tailX - 5, by + bubbleH);
-  ctx.lineTo(tailX, by + bubbleH + 6);
-  ctx.lineTo(tailX + 5, by + bubbleH);
-  ctx.stroke();
-
-  // チャットアイコン風の小さなバッジ＋コメント本文
-  ctx.fillStyle = "#94a3b8";
-  ctx.beginPath();
-  ctx.arc(bx + 9, by + bubbleH / 2, 3.2, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = "#f1f5ff";
-  ctx.textAlign = "left";
-  ctx.fillText(text, bx + 16, by + 15);
+  // コメント文字
+  ctx.fillStyle = "#f1f5f9";
+  ctx.fillText(text, bx + padX, by + 13);
   ctx.restore();
 }
 
-// ④ 描く：配列の敵本体を描いたあと、吹き出しを上に重ねて読みやすく描く
+// ④ 描く：配列の敵を1体ずつ取り出して描く
 function drawEnemies() {
   for (const enemy of enemies) {
-    // 足元の影
-    const groundDist = Math.max(0, floor.y - (enemy.y + enemy.h));
-    const shadowScale = Math.max(0.35, 1 - groundDist / 260);
-    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-    ctx.beginPath();
-    ctx.ellipse(
-      enemy.x + enemy.w / 2,
-      floor.y - 2,
-      20 * shadowScale,
-      4.5 * shadowScale,
-      0,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
-
-    drawNerdStamp(enemy.x, enemy.y, enemy.w, enemy.h, enemy.bobPhase);
-  }
-
-  for (const enemy of enemies) {
+    drawNerdStamp(enemy.x, enemy.y);
     drawCommentBubble(enemy);
   }
 }
