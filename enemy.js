@@ -101,19 +101,23 @@ function collideWithEnemies(prevBottom) {
   let stompedAny = false;
   let damaged = false;
 
-  // 横・下からのダメージ判定は見た目より少し内側に縮めて理不尽な被弾を防ぐ
+  // 横・下からのダメージ判定は見た目よりかなり内側に縮めて優しくする
   const hurtPlayer = {
-    x: player.x + 8,
-    y: player.y + 6,
-    w: player.w - 16,
-    h: player.h - 10
+    x: player.x + 11,
+    y: player.y + 8,
+    w: player.w - 22,
+    h: player.h - 14
   };
 
   for (const enemy of enemies) {
     if (!enemy.alive || !aabb(player, enemy)) continue;
 
-    // 上から踏みつけた判定（落下中かつ敵の上半分付近から入った場合）
-    if (wasFalling && prevBottom <= enemy.y + enemy.h * 0.55) {
+    // 上から踏みつけた判定（落下中、または踏みつけ直後の無敵時間中に触れた敵もまとめてBAN）
+    const isStomp =
+      (wasFalling && prevBottom <= enemy.y + enemy.h * 0.75) ||
+      (player.stompInvuln > 0 && player.y + player.h <= enemy.y + enemy.h * 0.85);
+
+    if (isStomp) {
       enemy.alive = false;
       stompedAny = true;
 
@@ -126,13 +130,13 @@ function collideWithEnemies(prevBottom) {
         gameState = "clear";
         initClearEffects();
       }
-    } else {
+    } else if (player.stompInvuln <= 0) {
       // 横・下からの接触は小さめのヒットボックスで判定
       const hurtEnemy = {
-        x: enemy.x + 8,
-        y: enemy.y + 6,
-        w: enemy.w - 16,
-        h: enemy.h - 6
+        x: enemy.x + 12,
+        y: enemy.y + 10,
+        w: enemy.w - 24,
+        h: enemy.h - 10
       };
       if (aabb(hurtPlayer, hurtEnemy)) {
         damaged = true;
@@ -141,11 +145,12 @@ function collideWithEnemies(prevBottom) {
   }
 
   if (stompedAny) {
-    // 2体以上同時に踏んでも全員まとめてBANし、最後に1回だけ跳ねる
+    // 2体以上同時に踏んでも全員まとめてBANし、跳ね上がり直後の短時間（0.3秒）は被弾しない
     player.vy = -JUMP_SPEED * 0.68;
     player.jumpsLeft = MAX_JUMPS;
-  } else if (damaged && player.hitTimer <= 0) {
-    // 踏んでいないフレームで横・下からぶつかった場合のみダメージ
+    player.stompInvuln = 0.3;
+  } else if (damaged && player.hitTimer <= 0 && player.stompInvuln <= 0) {
+    // 踏んでいない＆踏みつけ直後でもない場合のみダメージ
     player.hp -= 1;
     player.hitTimer = 1.4;
     player.vy = -220;

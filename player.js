@@ -21,6 +21,7 @@ const player = {
   jumpsLeft: MAX_JUMPS,
   hp: MAX_HP,
   hitTimer: 0,
+  stompInvuln: 0,
   facing: 1 // 1: 右向き, -1: 左向き
 };
 
@@ -34,6 +35,7 @@ function resetPlayer() {
   player.jumpsLeft = MAX_JUMPS;
   player.hp = MAX_HP;
   player.hitTimer = 0;
+  player.stompInvuln = 0;
   player.facing = 1;
 }
 
@@ -65,6 +67,9 @@ function updatePlayer(dt) {
   // 無敵時間の更新
   if (player.hitTimer > 0) {
     player.hitTimer = Math.max(0, player.hitTimer - dt);
+  }
+  if (player.stompInvuln > 0) {
+    player.stompInvuln = Math.max(0, player.stompInvuln - dt);
   }
 
   // 左右の移動と向きの更新
